@@ -8,6 +8,7 @@ TPSStripeBridgeTypeDefine(createPaymentMethod);
 TPSStripeBridgeKeyDeclare(createPaymentMethod, id);
 TPSStripeBridgeKeyDeclare(createPaymentMethod, billingDetails);
 TPSStripeBridgeKeyDeclare(createPaymentMethod, card);
+TPSStripeBridgeKeyDeclare(createPaymentMethod, sepaDebit);
 //TPSStripeBridgeKeyDeclare(createPaymentMethod, iDEAL);
 TPSStripeBridgeKeyDeclare(createPaymentMethod, metadata);
 TPSStripeBridgeKeyDeclare(createPaymentMethod, customerId);
@@ -19,6 +20,7 @@ TPSStripeBridgeKeyDeclare(PaymentMethod, livemode);
 TPSStripeBridgeKeyDeclare(PaymentMethod, type);
 TPSStripeBridgeKeyDeclare(PaymentMethod, billingDetails);
 TPSStripeBridgeKeyDeclare(PaymentMethod, card);
+TPSStripeBridgeKeyDeclare(PaymentMethod, sepaDebit);
 TPSStripeBridgeKeyDeclare(PaymentMethod, customerId);
 TPSStripeBridgeKeyDeclare(PaymentMethod, metadata);
 
@@ -29,6 +31,13 @@ TPSStripeBridgeKeyDeclare(PaymentMethodCard, expMonth);
 TPSStripeBridgeKeyDeclare(PaymentMethodCard, expYear);
 TPSStripeBridgeKeyDeclare(PaymentMethodCard, funding);
 TPSStripeBridgeKeyDeclare(PaymentMethodCard, last4);
+
+TPSStripeBridgeTypeDefine(PaymentMethodSepaDebit);
+TPSStripeBridgeKeyDeclare(PaymentMethodSepaDebit, bankCode);
+TPSStripeBridgeKeyDeclare(PaymentMethodSepaDebit, branchCode);
+TPSStripeBridgeKeyDeclare(PaymentMethodSepaDebit, country);
+TPSStripeBridgeKeyDeclare(PaymentMethodSepaDebit, fingerprint);
+TPSStripeBridgeKeyDeclare(PaymentMethodSepaDebit, last4);
 
 TPSStripeBridgeTypeDefine(PaymentMethodBillingDetails);
 TPSStripeBridgeKeyDeclare(PaymentMethodBillingDetails, address);
@@ -58,6 +67,9 @@ TPSStripeBridgeKeyDeclare(CardParams, addressState);
 TPSStripeBridgeKeyDeclare(CardParams, addressCountry);
 TPSStripeBridgeKeyDeclare(CardParams, addressZip);
 TPSStripeBridgeKeyDeclare(CardParams, token);
+
+TPSStripeBridgeTypeDefine(SepaParams);
+TPSStripeBridgeKeyDeclare(SepaParams, iban);
 
 TPSStripeBridgeTypeDefine(confirmPaymentIntent);
 TPSStripeBridgeKeyDeclare(confirmPaymentIntent, clientSecret);

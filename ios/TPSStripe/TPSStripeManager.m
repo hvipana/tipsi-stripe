@@ -116,6 +116,7 @@ RCT_ENUM_CONVERTER(STPPaymentMethodType,
                       @"iDEAL": @(STPPaymentMethodTypeiDEAL),
                       @"card_present": @(STPPaymentMethodTypeCardPresent),
                       @"fpx": @(STPPaymentMethodTypeUnknown),
+                      @"sepa_debit": @(STPPaymentMethodTypeSEPADebit),
                       @"unknown": @(STPPaymentMethodTypeUnknown),
                       }),
                    STPPaymentMethodTypeUnknown,
@@ -127,6 +128,7 @@ RCT_ENUM_CONVERTER(STPPaymentMethodType,
         case STPPaymentMethodTypeiDEAL: return @"iDEAL";
         case STPPaymentMethodTypeCardPresent: return @"card_present";
         case STPPaymentMethodTypeFPX: return @"fpx";
+        case STPPaymentMethodTypeSEPADebit: return @"sepa_debit";
         case STPPaymentMethodTypeUnknown:
         default: return @"unknown";
     }
@@ -884,6 +886,11 @@ RCT_EXPORT_METHOD(openApplePaySetup) {
 
 #pragma mark - Private - Converters
 
+
+- (NSString *)extractIBANFromDictionary:(NSDictionary<TPSStripeType(SepaParams), id> *)params {
+    return params[TPSStripeParam(SepaParams, iban)];
+}
+
 - (STPCardParams *)extractCardParamsFromDictionary:(NSDictionary<TPSStripeType(CardParams), id> *)params {
     STPCardParams *result = [[STPCardParams alloc] init];
 #define simpleUnpack(key) result.key = [RCTConvert NSString:params[TPSStripeParam(CardParams, key)]]
@@ -934,6 +941,22 @@ RCT_EXPORT_METHOD(openApplePaySetup) {
     return card;
 }
 
+- (STPPaymentMethodSEPADebitParams*)extractPaymentMethodSepaParamsFromDictionary:(NSDictionary<TPSStripeType(SepaParams), id>*)params {
+    if (!params || [NSNull null] == (id)params) {
+        return nil;
+    }
+
+    STPPaymentMethodSEPADebitParams * sepa = nil;
+    if ([params isKindOfClass:NSDictionary.class]) {
+        sepa = [[STPPaymentMethodSEPADebitParams alloc] init];
+        sepa.iban = [self extractIBANFromDictionary:params];
+    } else {
+        NSParameterAssert([params isKindOfClass:NSDictionary.class]);
+        return nil;
+    }
+    return sepa;
+}
+
 - (STPPaymentMethodAddress *)extractPaymentMethodBillingDetailsAddressFromDictionary:(NSDictionary<TPSStripeType(PaymentMethodAddress), id>*)params {
     if (!params) {return nil;}
 
@@ -965,17 +988,26 @@ RCT_EXPORT_METHOD(openApplePaySetup) {
 
 - (STPPaymentMethodParams*)extractCreatePaymentMethodParamsFromDictionary:(NSDictionary<TPSStripeType(createPaymentMethod), id>*)params {
     NSDictionary<TPSStripeType(CardParams), id> * cardParamsInput = params[TPSStripeParam(createPaymentMethod, card)];
-    if (!cardParamsInput && NSNull.null != (id)cardParamsInput) {return nil;}
+    NSDictionary<TPSStripeType(SepaParams), id> * sepaParamsInput = params[TPSStripeParam(createPaymentMethod, sepaDebit)];
+    if ((!cardParamsInput && NSNull.null != (id)cardParamsInput) && (!sepaParamsInput && NSNull.null != (id)sepaParamsInput)) {return nil;}
+    if (cardParamsInput) {
+        STPPaymentMethodCardParams * card = [self extractPaymentMethodCardParamsFromDictionary:cardParamsInput];
+        STPPaymentMethodBillingDetails * details = [self extractPaymentMethodBillingDetailsFromDictionary: params[TPSStripeParam(createPaymentMethod, billingDetails)]];
+        NSDictionary* metadata = params[TPSStripeParam(createPaymentMethod, metadata)];
 
-    STPPaymentMethodCardParams * card = [self extractPaymentMethodCardParamsFromDictionary:cardParamsInput];
-    STPPaymentMethodBillingDetails * details = [self extractPaymentMethodBillingDetailsFromDictionary: params[TPSStripeParam(createPaymentMethod, billingDetails)]];
-    NSDictionary* metadata = params[TPSStripeParam(createPaymentMethod, metadata)];
+        // TODO: decide if we want to support iDEAL bank accounts
+        //    STPPaymentMethodiDEALParams * idealParams = [self extractIDEALParamsFromDictionary: params[TPSStripeParam(createPaymentMethod, iDEAL)]];
+        //    stpParams.iDEAL = idealParams;
 
-    // TODO: decide if we want to support iDEAL bank accounts
-    //    STPPaymentMethodiDEALParams * idealParams = [self extractIDEALParamsFromDictionary: params[TPSStripeParam(createPaymentMethod, iDEAL)]];
-    //    stpParams.iDEAL = idealParams;
+        return [STPPaymentMethodParams paramsWithCard:card billingDetails:details metadata:metadata];
+    } else if (sepaParamsInput) {
+        STPPaymentMethodSEPADebitParams * sepa = [self extractPaymentMethodSepaParamsFromDictionary:sepaParamsInput];
+        STPPaymentMethodBillingDetails * details = [self extractPaymentMethodBillingDetailsFromDictionary: params[TPSStripeParam(createPaymentMethod, billingDetails)]];
+        NSDictionary* metadata = params[TPSStripeParam(createPaymentMethod, metadata)];
 
-    return [STPPaymentMethodParams paramsWithCard:card billingDetails:details metadata:metadata];
+        return [STPPaymentMethodParams paramsWithSEPADebit:sepa billingDetails:details metadata:metadata];
+    }
+    return nil;
 }
 
 - (STPPaymentIntentParams*)extractConfirmPaymentIntentParamsFromDictionary:(NSDictionary<TPSStripeType(confirmPaymentIntent), id> *)params {
@@ -1097,8 +1129,8 @@ RCT_EXPORT_METHOD(openApplePaySetup) {
              TPSStripeParam(PaymentMethod, type): [RCTConvert STPPaymentMethodTypeString:method.type],
              TPSStripeParam(PaymentMethod, billingDetails): [self convertPaymentMethodBillingDetails: method.billingDetails] ?: NSNull.null,
              TPSStripeParam(PaymentMethod, card): [self convertPaymentMethodCard: method.card] ?: NSNull.null,
+             TPSStripeParam(PaymentMethod, sepaDebit): [self convertPaymentMethodSepaDebit: method.sepaDebit] ?: NSNull.null,
              TPSEntry(customerId),
-             TPSEntry(metadata),
              };
 #undef TPSEntry
 }
@@ -1115,6 +1147,18 @@ RCT_EXPORT_METHOD(openApplePaySetup) {
              TPSEntry(last4),
              };
 #undef TPSEntryNum
+#undef TPSEntry
+}
+- (NSDictionary*)convertPaymentMethodSepaDebit:(STPPaymentMethodSEPADebit*)sepa {
+    if (!sepa) {return nil;}
+#define TPSEntry(key) TPSStripeParam(PaymentMethodSepaDebit, key): sepa.key ?: NSNull.null
+    return @{
+             TPSEntry(bankCode),
+             TPSEntry(branchCode),
+             TPSEntry(country),
+             TPSEntry(fingerprint),
+             TPSEntry(last4),
+             };
 #undef TPSEntry
 }
 - (NSDictionary*)convertPaymentMethodBillingDetails:(STPPaymentMethodBillingDetails*)details {
