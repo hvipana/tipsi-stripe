@@ -7,6 +7,7 @@ import android.os.AsyncTask;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.Arguments;
@@ -547,7 +548,6 @@ public class StripeModule extends ReactContextBaseJavaModule {
     ReadableMap sepaDebitParams = getMapOrNull(options, "sepaDebit");
     ReadableMap billingDetailsParams = getMapOrNull(options, "billingDetails");
     ReadableMap metadataParams = getMapOrNull(options, "metadata");
-
     PaymentMethodCreateParams.Card card = null;
     PaymentMethodCreateParams.SepaDebit sepa = null;
     PaymentMethod.BillingDetails billingDetails = null;
