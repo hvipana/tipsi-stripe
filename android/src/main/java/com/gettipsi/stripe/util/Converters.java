@@ -1,7 +1,7 @@
 package com.gettipsi.stripe.util;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.facebook.react.bridge.Arguments;
@@ -18,14 +18,12 @@ import com.stripe.android.SetupIntentResult;
 import com.stripe.android.model.Address;
 import com.stripe.android.model.BankAccount;
 import com.stripe.android.model.Card;
+import com.stripe.android.model.CardBrand;
+import com.stripe.android.model.CardFunding;
 import com.stripe.android.model.PaymentIntent;
 import com.stripe.android.model.PaymentMethod;
 import com.stripe.android.model.SetupIntent;
 import com.stripe.android.model.Source;
-import com.stripe.android.model.SourceCodeVerification;
-import com.stripe.android.model.SourceOwner;
-import com.stripe.android.model.SourceReceiver;
-import com.stripe.android.model.SourceRedirect;
 import com.stripe.android.model.Token;
 
 import java.util.ArrayList;
@@ -85,8 +83,6 @@ public class Converters {
     if (card == null) return result;
 
     result.putString("cardId", card.getId());
-    result.putString("number", card.getNumber());
-    result.putString("cvc", card.getCVC() );
     result.putInt("expMonth", card.getExpMonth() );
     result.putInt("expYear", card.getExpYear() );
     result.putString("name", card.getName() );
@@ -97,8 +93,8 @@ public class Converters {
     result.putString("addressZip", card.getAddressZip() );
     result.putString("addressCountry", card.getAddressCountry() );
     result.putString("last4", card.getLast4() );
-    result.putString("brand", card.getBrand() );
-    result.putString("funding", card.getFunding() );
+    result.putString("brand", card.getBrand().name() );
+    result.putString("funding", card.getFunding().name() );
     result.putString("fingerprint", card.getFingerprint() );
     result.putString("country", card.getCountry() );
     result.putString("currency", card.getCurrency() );
@@ -112,11 +108,10 @@ public class Converters {
     if (account == null) return result;
 
     result.putString("routingNumber", account.getRoutingNumber());
-    result.putString("accountNumber", account.getAccountNumber());
     result.putString("countryCode", account.getCountryCode());
     result.putString("currency", account.getCurrency());
     result.putString("accountHolderName", account.getAccountHolderName());
-    result.putString("accountHolderType", account.getAccountHolderType());
+    result.putString("accountHolderType", account.getAccountHolderType().name());
     result.putString("fingerprint", account.getFingerprint());
     result.putString("bankName", account.getBankName());
     result.putString("last4", account.getLast4());
@@ -196,10 +191,10 @@ public class Converters {
       .addressState(getValue(cardData, "addressState"))
       .addressZip(getValue(cardData, "addressZip"))
       .addressCountry(getValue(cardData, "addressCountry"))
-      .brand(getValue(cardData, "brand"))
+      .brand(CardBrand.valueOf(getValue(cardData, "brand")))
       .last4(getValue(cardData, "last4"))
       .fingerprint(getValue(cardData, "fingerprint"))
-      .funding(getValue(cardData, "funding"))
+      .funding(CardFunding.valueOf(getValue(cardData, "funding")))
       .country(getValue(cardData, "country"))
       .currency(getValue(cardData, "currency"))
       .id(getValue(cardData, "id"))
@@ -221,17 +216,16 @@ public class Converters {
     newSource.putInt("created", source.getCreated().intValue());
     newSource.putMap("codeVerification", convertCodeVerificationToWritableMap(source.getCodeVerification()));
     newSource.putString("currency", source.getCurrency());
-    newSource.putString("flow", source.getFlow());
+    newSource.putString("flow", source.getFlow().name());
     newSource.putBoolean("livemode", source.isLiveMode());
-    newSource.putMap("metadata", stringMapToWritableMap(source.getMetaData()));
     newSource.putMap("owner", convertOwnerToWritableMap(source.getOwner()));
     newSource.putMap("receiver", convertReceiverToWritableMap(source.getReceiver()));
     newSource.putMap("redirect", convertRedirectToWritableMap(source.getRedirect()));
     newSource.putMap("sourceTypeData", mapToWritableMap(source.getSourceTypeData()));
-    newSource.putString("status", source.getStatus());
+    newSource.putString("status", source.getStatus().toString());
     newSource.putString("type", source.getType());
     newSource.putString("typeRaw", source.getTypeRaw());
-    newSource.putString("usage", source.getUsage());
+    newSource.putString("usage", source.getUsage().name());
 
     return newSource;
   }
@@ -288,9 +282,10 @@ public class Converters {
     wm.putString("id", paymentMethod.id);
     wm.putInt("created", paymentMethod.created.intValue());
     wm.putBoolean("livemode", paymentMethod.liveMode);
-    wm.putString("type", paymentMethod.type);
+    wm.putString("type", paymentMethod.type.code);
     wm.putMap("billingDetails", convertBillingDetailsToWritableMap(paymentMethod.billingDetails));
     wm.putMap("card", convertPaymentMethodCardToWritableMap(paymentMethod.card));
+    wm.putMap("sepaDebit", convertPaymentMethodSepaDebitToWritableMap(paymentMethod.sepaDebit));
     wm.putString("customerId", paymentMethod.customerId);
 
     // TODO support metadata
@@ -307,12 +302,27 @@ public class Converters {
 
     // Omitted (can be introduced later): card.checks, card.threeDSecureUsage, card.wallet
 
-    wm.putString("brand", card.brand);
+    wm.putString("brand", card.brand.getCode());
     wm.putString("country", card.country);
     wm.putInt("expMonth", card.expiryMonth);
     wm.putInt("expYear", card.expiryYear);
     wm.putString("funding", card.funding);
     wm.putString("last4", card.last4);
+    return wm;
+  }
+
+  @NonNull
+  public static WritableMap convertPaymentMethodSepaDebitToWritableMap(@Nullable final PaymentMethod.SepaDebit sepa) {
+    WritableMap wm = Arguments.createMap();
+
+    if (sepa == null) {
+      return wm;
+    }
+    wm.putString("bankCode", sepa.bankCode);
+    wm.putString("branchCode", sepa.branchCode);
+    wm.putString("country", sepa.country);
+    wm.putString("fingerprint", sepa.fingerprint);
+    wm.putString("last4", sepa.last4);
     return wm;
   }
 
@@ -348,7 +358,7 @@ public class Converters {
   }
 
   @NonNull
-  public static WritableMap convertOwnerToWritableMap(@Nullable final SourceOwner owner) {
+  public static WritableMap convertOwnerToWritableMap(@Nullable final Source.Owner owner) {
     WritableMap map = Arguments.createMap();
 
     if (owner == null) {
@@ -386,7 +396,7 @@ public class Converters {
   }
 
   @NonNull
-  public static WritableMap convertReceiverToWritableMap(@Nullable final SourceReceiver receiver) {
+  public static WritableMap convertReceiverToWritableMap(@Nullable final Source.Receiver receiver) {
     WritableMap map = Arguments.createMap();
 
     if (receiver == null) {
@@ -402,7 +412,7 @@ public class Converters {
   }
 
   @NonNull
-  public static WritableMap convertRedirectToWritableMap(@Nullable SourceRedirect redirect) {
+  public static WritableMap convertRedirectToWritableMap(@Nullable Source.Redirect redirect) {
     WritableMap map = Arguments.createMap();
 
     if (redirect == null) {
@@ -410,14 +420,14 @@ public class Converters {
     }
 
     map.putString("returnUrl", redirect.getReturnUrl());
-    map.putString("status", redirect.getStatus());
+    map.putString("status", redirect.getStatus().toString());
     map.putString("url", redirect.getUrl());
 
     return map;
   }
 
   @NonNull
-  public static WritableMap convertCodeVerificationToWritableMap(@Nullable SourceCodeVerification codeVerification) {
+  public static WritableMap convertCodeVerificationToWritableMap(@Nullable Source.CodeVerification codeVerification) {
     WritableMap map = Arguments.createMap();
 
     if (codeVerification == null) {
@@ -425,7 +435,7 @@ public class Converters {
     }
 
     map.putInt("attemptsRemaining", codeVerification.getAttemptsRemaining());
-    map.putString("status", codeVerification.getStatus());
+    map.putString("status", codeVerification.getStatus().toString());
 
     return map;
   }
@@ -489,6 +499,8 @@ public class Converters {
   }
 
   public static BankAccount createBankAccount(ReadableMap accountData) {
+    return null;
+    /*
     BankAccount account = new BankAccount(
       // required fields only
       accountData.getString("accountNumber"),
@@ -503,6 +515,7 @@ public class Converters {
     );
 
     return account;
+    */
   }
 
   public static String getStringOrNull(@NonNull ReadableMap map, @NonNull String key) {
